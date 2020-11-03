@@ -715,6 +715,7 @@ kvm_events_init(
     vmi->driver.start_single_step_ptr = &kvm_start_single_step;
     vmi->driver.stop_single_step_ptr = &kvm_stop_single_step;
     vmi->driver.shutdown_single_step_ptr = &kvm_shutdown_single_step;
+    vmi->driver.set_cpuid_event_ptr = &kvm_set_cpuid_event;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
@@ -830,6 +831,8 @@ kvm_events_destroy(
             errprint("--Failed to disable PF interception\n");
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false))
             errprint("--Failed to disable singlestep monitoring\n");
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CPUID, false))
+            errprint("--Failed to disable cpuid monitoring\n");
     }
 
     // clean event queue
@@ -1321,4 +1324,36 @@ kvm_shutdown_single_step(
 
     // disabling singlestep monitoring is done at driver destroy
     return VMI_SUCCESS;
+}
+
+status_t
+kvm_set_cpuid_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    int rc;
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
+
+    for (unsigned vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        rc = kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CPUID, enabled);
+        if (rc) {
+            errprint("Failed to set CPUID event, vcpu: %u, error: %s\n", vcpu, strerror(errno));
+            goto err_exit;
+        }
+    }
+
+    return VMI_SUCCESS;
+
+err_exit:
+    if (enabled) {
+        for (unsigned vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CPUID, false);
+        }
+    }
+    return VMI_FAILURE;
 }
