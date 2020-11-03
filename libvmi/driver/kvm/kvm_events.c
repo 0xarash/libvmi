@@ -684,6 +684,41 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
+static status_t
+process_cpuid(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+    event_response_t response = KVMI_EVENT_ACTION_CONTINUE;
+    vmi_event_t *libvmi_event = vmi->cpuid_event;
+
+    if (!vmi->shutting_down) {
+        libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+
+        x86_registers_t libvmi_regs = {0};
+        libvmi_event->x86_regs = &libvmi_regs;
+        struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
+        struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
+        kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
+
+        libvmi_event->cpuid_event.insn_length = kvmi_event->event.cpuid.insn_length;
+        libvmi_event->cpuid_event.leaf = kvmi_event->event.cpuid.function;
+        libvmi_event->cpuid_event.subleaf = kvmi_event->event.cpuid.index;
+
+        response = call_event_callback(vmi, libvmi_event);
+    }
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
+}
+
 /*
  * kvm_events.h API
  */
@@ -725,6 +760,7 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
     kvm->process_event[KVMI_EVENT_SINGLESTEP] = &process_singlestep;
+    kvm->process_event[KVMI_EVENT_CPUID] = &process_cpuid;
 
     // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
