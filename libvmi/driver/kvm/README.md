@@ -81,7 +81,7 @@ This section will give an implementation status of the LibVMI API on the new KVM
         - [ ] `mem_event.gla_valid`
         - [x] `mem_event.gla`
         - [x] `mem_event.offset`
-    - [ ] cpuid
+    - [X] cpuid
     - [ ] privcall
     - [ ] descriptor
         - [ ] `desc_event.instr_info`
