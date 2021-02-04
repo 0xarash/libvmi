@@ -557,7 +557,7 @@ kvm_setup_live_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi, ~0ull);
+        v2p_cache_flush(vmi, ~0ull, 0);
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory,
                           1);
@@ -718,6 +718,10 @@ kvm_destroy(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!kvm) {
+        return;
+    }
+
     destroy_domain_socket(kvm);
 
     if (kvm->dom) {

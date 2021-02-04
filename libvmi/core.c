@@ -45,14 +45,6 @@
 
 #ifndef ENABLE_CONFIGFILE
 static inline status_t
-read_config_file(vmi_instance_t UNUSED(vmi),
-                 FILE* UNUSED(config_file),
-                 GHashTable** UNUSED(_config))
-{
-    return VMI_FAILURE;
-}
-
-static inline status_t
 read_config_string(vmi_instance_t UNUSED(vmi),
                    const char* UNUSED(config),
                    GHashTable** UNUSED(_config),
@@ -275,7 +267,7 @@ init_page_offset(
     //TODO need a better way to handle the page size issue
     /* assume 4k pages for now, update when 2M page is found */
     vmi->page_shift = 12;
-    vmi->page_size = 1 << vmi->page_shift;
+    vmi->page_size = VMI_PS_4KB;
 
     return VMI_SUCCESS;
 }
@@ -521,6 +513,9 @@ status_t vmi_init(
     dbprint(VMI_DEBUG_CORE, "LibVMI Driver Mode %d\n", _vmi->mode);
 
     _vmi->init_flags = init_flags;
+    _vmi->page_mode = VMI_PM_UNKNOWN;
+
+    arch_init_lookup_tables(_vmi);
 
     if ( init_data && init_data->count ) {
         uint64_t i;
@@ -857,9 +852,7 @@ vmi_destroy(
     }
 
     free(vmi->os_data);
-    free(vmi->arch_interface);
     vmi->os_data = NULL;
-    vmi->arch_interface = NULL;
 
 #ifdef ENABLE_JSON_PROFILES
     g_free((char*)vmi->json.path);

@@ -14,6 +14,7 @@ set(libvmi_src
     arch/amd64.c
     arch/arm_aarch32.c
     arch/arm_aarch64.c
+    arch/ept.c
     driver/driver_interface.c
     driver/memory_cache.c
     os/os_interface.c
@@ -120,6 +121,7 @@ if (ENABLE_KVM)
     else ()
         if (ENABLE_KVM_LEGACY)
             # legacy KVM driver
+            target_link_libraries(vmi_shared PRIVATE m)
             find_package(JSON-C)
             set_package_properties(JSON-C PROPERTIES
                 PURPOSE "Dependency for KVM driver")
@@ -128,9 +130,6 @@ if (ENABLE_KVM)
                 message(WARNING "Cannot find JSON: disabling KVM driver")
             else ()
                 find_package(LibvmiRequest)
-                if (LibvmiRequest_FOUND)
-                    target_link_libraries(vmi_shared PRIVATE m)
-                endif ()
             endif ()
         else ()
             # KVM driver based on KVMi series, API is exposed via libkvmi
